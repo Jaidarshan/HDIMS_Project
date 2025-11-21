@@ -1,0 +1,22 @@
+# --- Python / Flask (Backend) ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+instance/
+.pytest_cache/
+*.db
+*.sqlite3
+
+# --- Node / React (Frontend) ---
+client/node_modules/
+client/dist/
+client/.env
+client/.env.local
+client/coverage/
+
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
