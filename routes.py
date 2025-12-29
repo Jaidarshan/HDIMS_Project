@@ -849,11 +849,40 @@ def api_admin_analytics():
     if current_user.role != 'admin':
         return jsonify({'error': 'Access denied'}), 403
     
-    # Reuse logic from original route but return pure JSON
-    status_counts = db.session.query(Appointment.status, func.count(Appointment.id)).group_by(Appointment.status).all()
+    # 1. Appointment Status Distribution (Pie Chart)
+    status_counts = db.session.query(
+        Appointment.status, func.count(Appointment.id)
+    ).group_by(Appointment.status).all()
     
+    # 2. Revenue by Specialization (Bar Chart)
+    # Joins Doctor and Appointment tables, sums consultation_fee for completed appointments
+    revenue_data = db.session.query(
+        Doctor.specialization,
+        func.sum(Doctor.consultation_fee)
+    ).join(Appointment, Doctor.id == Appointment.doctor_id)\
+     .filter(Appointment.status == 'completed')\
+     .group_by(Doctor.specialization).all()
+     
+    # 3. Monthly Appointment Volume (Line Chart)
+    # Extracts month from date. Note: Syntax depends on DB (SQLite vs PostgreSQL).
+    # Assuming standard SQLAlchemy extraction that works for most:
+    monthly_data = db.session.query(
+        func.strftime('%Y-%m', Appointment.appointment_date).label('month'), # For SQLite
+        # For Postgres use: func.to_char(Appointment.appointment_date, 'YYYY-MM')
+        func.count(Appointment.id)
+    ).group_by('month').order_by('month').all()
+
+    # 4. Patient Demographics (Doughnut Chart)
+    gender_data = db.session.query(
+        User.gender, func.count(User.id)
+    ).join(Patient, User.id == Patient.user_id)\
+     .group_by(User.gender).all()
+
     return jsonify({
-        'appointment_status': dict(status_counts)
+        'appointment_status': dict(status_counts),
+        'revenue_by_specialization': {r[0]: r[1] for r in revenue_data},
+        'monthly_growth': {m[0]: m[1] for m in monthly_data},
+        'patient_demographics': {g[0]: g[1] for g in gender_data}
     })
 
 # ---------------- Shared API Routes ----------------
