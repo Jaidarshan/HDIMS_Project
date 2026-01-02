@@ -768,7 +768,7 @@ def api_admin_dashboard():
     total_doctors = Doctor.query.count()
     total_appointments = Appointment.query.count()
     
-    # 2. Monthly appointment data for chart
+    # 2. Monthly appointment data
     monthly_query = db.session.query(
         func.date_trunc('month', Appointment.appointment_date).label('month'),
         func.count(Appointment.id).label('count')
@@ -779,7 +779,20 @@ def api_admin_dashboard():
         'count': row.count
     } for row in monthly_query]
 
-    # 3. Status distribution
+    # 3. Monthly Revenue (NEW)
+    revenue_query = db.session.query(
+        func.date_trunc('month', Appointment.appointment_date).label('month'),
+        func.sum(Doctor.consultation_fee).label('revenue')
+    ).join(Doctor, Appointment.doctor_id == Doctor.id)\
+     .filter(Appointment.status == 'completed')\
+     .group_by('month').order_by('month').all()
+
+    revenue_data = [{
+        'month': row.month.strftime('%Y-%m') if row.month else '',
+        'revenue': float(row.revenue or 0)
+    } for row in revenue_query]
+
+    # 4. Status distribution
     status_data = db.session.query(
         Appointment.status,
         func.count(Appointment.id).label('count')
@@ -787,7 +800,7 @@ def api_admin_dashboard():
     
     status_distribution = [{'status': row.status, 'count': row.count} for row in status_data]
 
-    # 4. Specialization distribution
+    # 5. Specialization distribution
     specialization_data = db.session.query(
         Doctor.specialization,
         func.count(Doctor.id).label('count')
@@ -803,6 +816,7 @@ def api_admin_dashboard():
         },
         'charts': {
             'monthly': monthly_data,
+            'revenue': revenue_data,
             'status': status_distribution,
             'specialization': specialization_distribution
         }
@@ -849,40 +863,55 @@ def api_admin_analytics():
     if current_user.role != 'admin':
         return jsonify({'error': 'Access denied'}), 403
     
-    # 1. Appointment Status Distribution (Pie Chart)
-    status_counts = db.session.query(
-        Appointment.status, func.count(Appointment.id)
-    ).group_by(Appointment.status).all()
+    # --- 1. Get Date Filters ---
+    start_date_str = request.args.get('startDate')
+    end_date_str = request.args.get('endDate')
     
-    # 2. Revenue by Specialization (Bar Chart)
-    # Joins Doctor and Appointment tables, sums consultation_fee for completed appointments
-    revenue_data = db.session.query(
-        Doctor.specialization,
-        func.sum(Doctor.consultation_fee)
-    ).join(Appointment, Doctor.id == Appointment.doctor_id)\
-     .filter(Appointment.status == 'completed')\
-     .group_by(Doctor.specialization).all()
-     
-    # 3. Monthly Appointment Volume (Line Chart)
-    # Extracts month from date. Note: Syntax depends on DB (SQLite vs PostgreSQL).
-    # Assuming standard SQLAlchemy extraction that works for most:
-    monthly_data = db.session.query(
-        func.strftime('%Y-%m', Appointment.appointment_date).label('month'), # For SQLite
-        # For Postgres use: func.to_char(Appointment.appointment_date, 'YYYY-MM')
-        func.count(Appointment.id)
-    ).group_by('month').order_by('month').all()
+    date_filter = True 
+    if start_date_str and end_date_str:
+        try:
+            start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            date_filter = and_(Appointment.appointment_date >= start, Appointment.appointment_date <= end)
+        except ValueError:
+            pass
 
-    # 4. Patient Demographics (Doughnut Chart)
-    gender_data = db.session.query(
-        User.gender, func.count(User.id)
-    ).join(Patient, User.id == Patient.user_id)\
-     .group_by(User.gender).all()
+    # --- 2. Existing Queries ---
+    status_counts = db.session.query(Appointment.status, func.count(Appointment.id)).filter(date_filter).group_by(Appointment.status).all()
+    
+    revenue_data = db.session.query(Doctor.specialization, func.sum(Doctor.consultation_fee)).join(Appointment, Doctor.id == Appointment.doctor_id).filter(Appointment.status == 'completed').filter(date_filter).group_by(Doctor.specialization).all()
+     
+    monthly_data = db.session.query(func.strftime('%Y-%m', Appointment.appointment_date).label('month'), func.count(Appointment.id)).filter(date_filter).group_by('month').order_by('month').all()
+
+    gender_data = db.session.query(User.gender, func.count(User.id)).join(Patient, User.id == Patient.user_id).group_by(User.gender).all()
+
+    # --- 3. NEW QUERIES ---
+    
+    # E. Appointment Types (Emergency vs Routine)
+    type_counts = db.session.query(
+        Appointment.appointment_type, 
+        func.count(Appointment.id)
+    ).filter(date_filter).group_by(Appointment.appointment_type).all()
+
+    # F. Top Diagnoses (from Medical Records linked to Appointments in this range)
+    # We join MedicalRecord -> Appointment to respect the date filter
+    diagnosis_data = db.session.query(
+        MedicalRecord.diagnosis, 
+        func.count(MedicalRecord.id)
+    ).join(Appointment, MedicalRecord.appointment_id == Appointment.id)\
+     .filter(date_filter)\
+     .group_by(MedicalRecord.diagnosis)\
+     .order_by(func.count(MedicalRecord.id).desc())\
+     .limit(5).all()
 
     return jsonify({
         'appointment_status': dict(status_counts),
         'revenue_by_specialization': {r[0]: r[1] for r in revenue_data},
         'monthly_growth': {m[0]: m[1] for m in monthly_data},
-        'patient_demographics': {g[0]: g[1] for g in gender_data}
+        'patient_demographics': {g[0]: g[1] for g in gender_data},
+        # New Data
+        'appointment_types': dict(type_counts),
+        'top_diagnoses': {d[0]: d[1] for d in diagnosis_data}
     })
 
 # ---------------- Shared API Routes ----------------
