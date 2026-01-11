@@ -1,3 +1,5 @@
+from google import genai
+import os
 from datetime import datetime, date, time, timedelta
 from flask import request, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, current_user
@@ -981,6 +983,94 @@ def init_db_endpoint():
         return jsonify({'message': 'DB Initialized'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# --- AI Assistant Route ---
+
+@app.route('/api/chat', methods=['POST'])
+def chat_with_ai():
+    """
+    Endpoint for the AI Assistant.
+    Receives a message and returns a response from Gemini.
+    """
+    data = request.get_json()
+    user_message = data.get('message', '')
+    
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+
+    try:
+        # 1. Get API Key
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            return jsonify({'error': 'Server configuration error: AI Key missing'}), 500
+        
+        # 2. Initialize Client (The NEW way)
+        # Instead of genai.configure, we create a Client
+        client = genai.Client(api_key=api_key)
+        
+        # 3. System Prompt (Your context-aware prompt)
+        system_context = """
+        You are the intelligent AI Assistant for HDIMS (Health Data Information Management System).
+        Your goal is to guide users through the app using exact, step-by-step navigation instructions based on the actual user interface.
+
+        ### 1. PATIENT NAVIGATION GUIDE
+        * **Booking an Appointment:**
+            - **Fastest Way:** Go to your **Dashboard**, scroll down to the **"Quick Actions"** card, and click the blue **"Book Appointment"** button.
+            - **Alternative:** Click **"Book Appointment"** in the top navigation bar.
+            - **From Appointments Page:** Click the **"Book New"** button (+ icon) in the top right corner.
+
+        * **Viewing Medical Records:**
+            - Click **"Medical Records"** in the top navigation bar.
+            - You will see a list of cards showing your diagnosis, treatment, and prescriptions.
+            - *Note:* If a record has a yellow border, it means a **Follow-up is Required**.
+
+        * **Checking Appointments:**
+            - Go to the **"My Appointments"** page.
+            - **Status Colors:** Blue = Scheduled, Green = Completed, Red = Cancelled.
+
+        * **Updating Profile:**
+            - Click your name in the top-right corner of the navbar -> select **"Profile"**.
+            - Or click the yellow **"Update Profile"** button in the "Quick Actions" section of the Dashboard.
+            - You can update your phone, allergies, and emergency contact details here.
+
+        ### 2. DOCTOR NAVIGATION GUIDE
+        * **Managing Your Schedule:**
+            - Go to your **Dashboard** to see a list of today's appointments immediately.
+            - To see all upcoming visits, click **"Appointments"** in the top navigation bar.
+
+        * **Completing an Appointment:**
+            - Navigate to the **"Appointments"** page.
+            - Find the patient in the list.
+            - Click the **"Complete"** button on the right side.
+            - A popup will ask you to enter the **Diagnosis** to finalize the record.
+
+        * **Viewing Patient History:**
+            - Click **"My Patients"** in the navigation bar.
+            - You will see cards for all your patients. Click the **"View Records"** button on a specific patient's card to see their full history.
+
+        ### 3. SECURITY & PRIVACY (AES-256)
+        - If a user asks about data safety, explain: "All sensitive medical data (like your allergies, diagnosis, and prescriptions) is encrypted using **AES-256** before it is stored. Even the database administrators cannot read your private health information."
+        
+        ### 4. GENERAL RULES
+        - **Be Specific:** Use the exact button names (e.g., "Quick Actions", "Book New").
+        - **No Personal Data:** Remind users you cannot "see" their live data.
+        """
+        
+        # 4. Generate Content (The NEW way)
+        # We combine system context + user question manually for the best result
+        full_prompt = f"System Instruction:\n{system_context}\n\nUser Question:\n{user_message}"
+        
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",  # Correct model name (not 2.5)
+            contents=full_prompt
+        )
+        
+        # 5. Return text
+        return jsonify({'response': response.text})
+        
+    except Exception as e:
+        logging.error(f"AI Error: {str(e)}")
+        return jsonify({'response': "I'm having trouble connecting right now. Please try again later."}), 500
 
 # Error handlers
 @app.errorhandler(404)

@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import { ToastProvider } from './context/ToastContext'; // <--- Import this
 import NotFound from './pages/NotFound';
+import ChatAssistant from './components/ChatAssistant';
 
 // --- IMPORTS ---
 // Public
@@ -47,6 +48,7 @@ function App() {
       <AuthProvider>
         <Router>
           <Navbar />
+          <ChatAssistant />
           <main className="container mt-4" style={{ minHeight: '80vh' }}>
             <Routes>
               {/* Public */}
