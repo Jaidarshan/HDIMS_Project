@@ -1,17 +1,71 @@
+import os
+import binascii
 from datetime import datetime, date, time
 from app import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import Text, Date, Time, Integer, String, Boolean, DateTime, Float, ForeignKey
+from sqlalchemy import Text, Date, Time, Integer, String, Boolean, DateTime, Float, ForeignKey, TypeDecorator
 from sqlalchemy.orm import relationship
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+# --- Encryption Helper Class ---
+class EncryptedString(TypeDecorator):
+    """
+    SQLAlchemy TypeDecorator that encrypts data before saving to DB
+    and decrypts when loading from DB using AES-256-GCM.
+    """
+    impl = Text
+    cache_ok = True
+
+    def __init__(self, *args, **kwargs):
+        super(EncryptedString, self).__init__(*args, **kwargs)
+        # Fetch key from environment variable
+        key_hex = os.environ.get('ENCRYPTION_KEY')
+        if not key_hex:
+            raise ValueError("ENCRYPTION_KEY not found in environment variables")
+        self.key = binascii.unhexlify(key_hex)
+        self.aesgcm = AESGCM(self.key)
+
+    def process_bind_param(self, value, dialect):
+        """Encrypt data before saving to DB"""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.encode('utf-8')
+        
+        # Generate a unique nonce for each encryption
+        nonce = os.urandom(12)
+        ciphertext = self.aesgcm.encrypt(nonce, value, None)
+        
+        # Store as: nonce + ciphertext (hex encoded for DB text storage)
+        return binascii.hexlify(nonce + ciphertext).decode('utf-8')
+
+    def process_result_value(self, value, dialect):
+        """Decrypt data after loading from DB"""
+        if value is None:
+            return None
+        try:
+            # Decode from hex
+            data = binascii.unhexlify(value)
+            # Extract nonce (first 12 bytes) and ciphertext
+            nonce = data[:12]
+            ciphertext = data[12:]
+            # Decrypt
+            decrypted_data = self.aesgcm.decrypt(nonce, ciphertext, None)
+            return decrypted_data.decode('utf-8')
+        except Exception as e:
+            # Handle cases where decryption fails (e.g., bad key or corrupted data)
+            return f"[Decryption Failed]"
+
+# --- Existing Models with Updates ---
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    
+    # ... (No changes to User class)
     id = db.Column(Integer, primary_key=True)
     email = db.Column(String(120), unique=True, nullable=False)
     password_hash = db.Column(String(256), nullable=False)
-    role = db.Column(String(20), nullable=False)  # 'patient', 'doctor', 'admin'
+    role = db.Column(String(20), nullable=False)
     first_name = db.Column(String(50), nullable=False)
     last_name = db.Column(String(50), nullable=False)
     phone = db.Column(String(20))
@@ -22,7 +76,6 @@ class User(UserMixin, db.Model):
     created_at = db.Column(DateTime, default=datetime.utcnow)
     updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     patient_profile = relationship("Patient", back_populates="user", uselist=False)
     doctor_profile = relationship("Doctor", back_populates="user", uselist=False)
     
@@ -38,25 +91,26 @@ class User(UserMixin, db.Model):
 
 class Patient(db.Model):
     __tablename__ = 'patients'
-    
+    # ... (Keep existing fields)
     id = db.Column(Integer, primary_key=True)
     user_id = db.Column(Integer, ForeignKey('users.id'), nullable=False)
     patient_id = db.Column(String(20), unique=True, nullable=False)
     blood_type = db.Column(String(5))
-    allergies = db.Column(Text)
+    
+    # Update potentially sensitive fields to use EncryptedString
+    allergies = db.Column(EncryptedString)  # Encrypted
     emergency_contact_name = db.Column(String(100))
     emergency_contact_phone = db.Column(String(20))
     insurance_provider = db.Column(String(100))
-    insurance_number = db.Column(String(50))
+    insurance_number = db.Column(EncryptedString) # Encrypted
     
-    # Relationships
     user = relationship("User", back_populates="patient_profile")
     appointments = relationship("Appointment", back_populates="patient")
     medical_records = relationship("MedicalRecord", back_populates="patient")
 
 class Doctor(db.Model):
     __tablename__ = 'doctors'
-    
+    # ... (No changes needed for Doctor unless you want to encrypt license_number)
     id = db.Column(Integer, primary_key=True)
     user_id = db.Column(Integer, ForeignKey('users.id'), nullable=False)
     doctor_id = db.Column(String(20), unique=True, nullable=False)
@@ -84,7 +138,6 @@ class Doctor(db.Model):
     sunday_start = db.Column(Time)
     sunday_end = db.Column(Time)
     
-    # Relationships
     user = relationship("User", back_populates="doctor_profile")
     appointments = relationship("Appointment", back_populates="doctor")
     medical_records = relationship("MedicalRecord", back_populates="doctor")
@@ -98,15 +151,14 @@ class Appointment(db.Model):
     doctor_id = db.Column(Integer, ForeignKey('doctors.id'), nullable=False)
     appointment_date = db.Column(Date, nullable=False)
     appointment_time = db.Column(Time, nullable=False)
-    status = db.Column(String(20), default='scheduled')  # scheduled, completed, cancelled, rescheduled
+    status = db.Column(String(20), default='scheduled')
     priority_score = db.Column(Integer, default=0)
-    appointment_type = db.Column(String(50))  # consultation, follow-up, emergency
-    symptoms = db.Column(Text)
-    notes = db.Column(Text)
+    appointment_type = db.Column(String(50))
+    symptoms = db.Column(EncryptedString) # Encrypted
+    notes = db.Column(Text) # General notes might not need encryption, or change to EncryptedString if needed
     created_at = db.Column(DateTime, default=datetime.utcnow)
     updated_at = db.Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
     patient = relationship("Patient", back_populates="appointments")
     doctor = relationship("Doctor", back_populates="appointments")
 
@@ -119,31 +171,32 @@ class MedicalRecord(db.Model):
     doctor_id = db.Column(Integer, ForeignKey('doctors.id'), nullable=False)
     appointment_id = db.Column(Integer, ForeignKey('appointments.id'))
     record_date = db.Column(Date, nullable=False)
-    diagnosis = db.Column(Text)
-    symptoms = db.Column(Text)
-    treatment = db.Column(Text)
-    prescription = db.Column(Text)
-    lab_results = db.Column(Text)
-    notes = db.Column(Text)
+    
+    # IMPORTANT: These fields are now encrypted
+    diagnosis = db.Column(EncryptedString) 
+    symptoms = db.Column(EncryptedString)
+    treatment = db.Column(EncryptedString)
+    prescription = db.Column(EncryptedString)
+    lab_results = db.Column(EncryptedString)
+    notes = db.Column(EncryptedString)
+    
     follow_up_required = db.Column(Boolean, default=False)
     follow_up_date = db.Column(Date)
     created_at = db.Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
     patient = relationship("Patient", back_populates="medical_records")
     doctor = relationship("Doctor", back_populates="medical_records")
     appointment = relationship("Appointment")
 
+# ... (Keep Specialization, Disease, DoctorReferral, SystemMetrics classes as they are)
 class Specialization(db.Model):
     __tablename__ = 'specializations'
-    
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(100), unique=True, nullable=False)
     description = db.Column(Text)
 
 class Disease(db.Model):
     __tablename__ = 'diseases'
-    
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(200), unique=True, nullable=False)
     description = db.Column(Text)
@@ -152,23 +205,20 @@ class Disease(db.Model):
 
 class DoctorReferral(db.Model):
     __tablename__ = 'doctor_referrals'
-    
     id = db.Column(Integer, primary_key=True)
     referring_doctor_id = db.Column(Integer, ForeignKey('doctors.id'), nullable=False)
     referred_doctor_id = db.Column(Integer, ForeignKey('doctors.id'), nullable=False)
     patient_id = db.Column(Integer, ForeignKey('patients.id'), nullable=False)
     referral_reason = db.Column(Text)
     referral_date = db.Column(Date, default=date.today)
-    status = db.Column(String(20), default='pending')  # pending, accepted, completed
+    status = db.Column(String(20), default='pending')
     
-    # Relationships
     referring_doctor = relationship("Doctor", foreign_keys=[referring_doctor_id])
     referred_doctor = relationship("Doctor", foreign_keys=[referred_doctor_id])
     patient = relationship("Patient")
 
 class SystemMetrics(db.Model):
     __tablename__ = 'system_metrics'
-    
     id = db.Column(Integer, primary_key=True)
     metric_date = db.Column(Date, nullable=False)
     total_appointments = db.Column(Integer, default=0)
