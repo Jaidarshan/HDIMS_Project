@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import api from '../api';
 import './ChatAssistant.css'; // We will create this next
 import { useAuth } from '../context/AuthContext';
+import ReactMarkdown from 'react-markdown';
 
 const ChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,11 +54,18 @@ const ChatAssistant = () => {
             </div>
             <button className="close-btn" onClick={() => setIsOpen(false)}>×</button>
           </div>
-          
+
           <div className="chat-messages">
             {messages.map((msg, idx) => (
               <div key={idx} className={`message ${msg.role}`}>
-                <div className="message-bubble">{msg.text}</div>
+                <div className="message-bubble">
+                  {/* If it's the AI, render Markdown. If user, keep text. */}
+                  {msg.role === 'ai' ? (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
+                </div>
               </div>
             ))}
             {isLoading && (
@@ -84,8 +92,8 @@ const ChatAssistant = () => {
       )}
 
       {/* Floating Button */}
-      <button 
-        className={`chat-toggle-btn ${isOpen ? 'hidden' : ''}`} 
+      <button
+        className={`chat-toggle-btn ${isOpen ? 'hidden' : ''}`}
         onClick={() => setIsOpen(true)}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

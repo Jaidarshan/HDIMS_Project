@@ -6,12 +6,11 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* Toggle Button */
 .chat-toggle-btn {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background-color: #0d6efd; /* Bootstrap Primary Blue */
+  background-color: #0d6efd; 
   color: white;
   border: none;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -31,7 +30,6 @@
   display: none;
 }
 
-/* Chat Window */
 .chat-window {
   width: 350px;
   height: 500px;
@@ -44,7 +42,6 @@
   border: 1px solid #e0e0e0;
 }
 
-/* Header */
 .chat-header {
   background-color: #0d6efd;
   color: white;
@@ -64,7 +61,6 @@
   line-height: 1;
 }
 
-/* Messages Area */
 .chat-messages {
   flex: 1;
   padding: 15px;
@@ -114,7 +110,6 @@
   color: #888;
 }
 
-/* Input Area */
 .chat-input-form {
   padding: 15px;
   border-top: 1px solid #eee;
@@ -148,4 +143,35 @@
 .chat-input-form button:disabled {
   color: #ccc;
   cursor: not-allowed;
+}
+
+.message-bubble p {
+  margin: 0 0 8px 0;
+}
+
+.message-bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.message-bubble ul, .message-bubble ol {
+  margin: 5px 0 5px 20px; 
+  padding: 0;
+}
+
+.message-bubble li {
+  margin-bottom: 4px;
+}
+
+.message-bubble h1, 
+.message-bubble h2, 
+.message-bubble h3, 
+.message-bubble h4 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin: 8px 0 4px 0;
+  color: inherit;
+}
+
+.message-bubble strong {
+  font-weight: 700;
 }
