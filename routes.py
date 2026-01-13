@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import os
 from datetime import datetime, date, time, timedelta
 from flask import request, jsonify, current_app
@@ -990,10 +991,11 @@ def init_db_endpoint():
 def chat_with_ai():
     """
     Endpoint for the AI Assistant.
-    Receives a message and returns a response from Gemini.
+    Receives a message AND history to maintain context.
     """
     data = request.get_json()
     user_message = data.get('message', '')
+    history = data.get('history', []) 
     
     if not user_message:
         return jsonify({'error': 'No message provided'}), 400
@@ -1004,11 +1006,31 @@ def chat_with_ai():
         if not api_key:
             return jsonify({'error': 'Server configuration error: AI Key missing'}), 500
         
-        # 2. Initialize Client (The NEW way)
-        # Instead of genai.configure, we create a Client
         client = genai.Client(api_key=api_key)
         
-        # 3. System Prompt (Your context-aware prompt)
+        # 2. Prepare Conversation History for Gemini
+        gemini_history = []
+        
+        for msg in history:
+            role = "model" if msg.get('role') == 'ai' else "user"
+            
+            # Skip the first message if it's from the AI (Gemini usually expects User first)
+            if len(gemini_history) == 0 and role == 'model':
+                continue
+            
+            # --- FIX: Use types.Part(text=...) instead of from_text ---
+            gemini_history.append(types.Content(
+                role=role,
+                parts=[types.Part(text=msg.get('text', ''))]
+            ))
+
+        # Add the current new message
+        gemini_history.append(types.Content(
+            role="user",
+            parts=[types.Part(text=user_message)]
+        ))
+
+        # 3. System Prompt
         system_context = """
         You are the intelligent AI Assistant for HDIMS (Health Data Information Management System).
         Your goal is to guide users through the app using exact, step-by-step navigation instructions based on the actual user interface.
@@ -1050,27 +1072,27 @@ def chat_with_ai():
 
         ### 3. SECURITY & PRIVACY (AES-256)
         - If a user asks about data safety, explain: "All sensitive medical data (like your allergies, diagnosis, and prescriptions) is encrypted using **AES-256** before it is stored. Even the database administrators cannot read your private health information."
-        
+
         ### 4. GENERAL RULES
         - **Be Specific:** Use the exact button names (e.g., "Quick Actions", "Book New").
         - **No Personal Data:** Remind users you cannot "see" their live data.
         """
         
-        # 4. Generate Content (The NEW way)
-        # We combine system context + user question manually for the best result
-        full_prompt = f"System Instruction:\n{system_context}\n\nUser Question:\n{user_message}"
-        
+        # 4. Generate Content
         response = client.models.generate_content(
-            model="gemini-2.5-flash",  # Correct model name (not 2.5)
-            contents=full_prompt
+            model="gemini-2.5-flash", # Use 1.5-flash (It is the most stable version right now)
+            contents=gemini_history,
+            config=types.GenerateContentConfig(
+                system_instruction=system_context,
+                temperature=0.7
+            )
         )
         
-        # 5. Return text
         return jsonify({'response': response.text})
         
     except Exception as e:
         logging.error(f"AI Error: {str(e)}")
-        return jsonify({'response': "I'm having trouble connecting right now. Please try again later."}), 500
+        return jsonify({'response': "I'm having trouble connecting right now."}), 500
 
 # Error handlers
 @app.errorhandler(404)

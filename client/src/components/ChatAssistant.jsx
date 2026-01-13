@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../api';
-import './ChatAssistant.css'; // We will create this next
+import './ChatAssistant.css';
 import { useAuth } from '../context/AuthContext';
 import ReactMarkdown from 'react-markdown';
 
@@ -28,11 +28,16 @@ const ChatAssistant = () => {
 
     const userMsg = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    const newHistory = [...messages, { role: 'user', text: userMsg }];
+    setMessages(newHistory);
     setIsLoading(true);
 
     try {
-      const response = await api.post('/chat', { message: userMsg });
+      const response = await api.post('/chat', { 
+        message: userMsg,
+        history: messages 
+      });
+      
       setMessages(prev => [...prev, { role: 'ai', text: response.data.response }]);
     } catch (error) {
       console.error("Chat error:", error);
