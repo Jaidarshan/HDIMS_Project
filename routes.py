@@ -229,7 +229,8 @@ def admin_register():
     data = request.get_json()
     try:
         admin_code = data.get('admin_code')
-        if admin_code != 'HDIMS_ADMIN_2025':
+        required_code = os.environ.get('ADMIN_SECRET_CODE')
+        if not required_code or admin_code != required_code:
             return jsonify({'error': 'Invalid admin authorization code.'}), 403
         
         email = data.get('email')
@@ -978,7 +979,8 @@ def init_db_endpoint():
         db.create_all()
         if not User.query.filter_by(email='admin@hdims.com').first():
             admin = User(email='admin@hdims.com', role='admin', first_name='System', last_name='Admin', is_active=True)
-            admin.set_password('admin123')
+            admin_password = os.environ.get('ADMIN_DEFAULT_PASSWORD', 'admin123') 
+            admin.set_password(admin_password)
             db.session.add(admin)
             db.session.commit()
         return jsonify({'message': 'DB Initialized'})
@@ -1094,6 +1096,70 @@ def chat_with_ai():
         logging.error(f"AI Error: {str(e)}")
         return jsonify({'response': "I'm having trouble connecting right now."}), 500
 
+# --- Data Persistence Helper ---
+def rebuild_structures():
+    """
+    Rebuilds the in-memory Tries, Graphs, and Heaps from the SQL Database.
+    This ensures data persists across server restarts.
+    """
+    with app.app_context():
+        try:
+            print("🔄 Rebuilding in-memory data structures from Database...")
+            
+            # 1. Rebuild Patient Trie
+            patients = Patient.query.join(User).all()
+            for p in patients:
+                p_data = {
+                    'first_name': p.user.first_name,
+                    'last_name': p.user.last_name,
+                    'email': p.user.email,
+                    'patient_id': p.patient_id
+                }
+                hdims_ds.index_patient(p.user.id, p_data)
+            print(f"   - Indexed {len(patients)} patients")
+
+            # 2. Rebuild Doctor Trie & Graph
+            doctors = Doctor.query.join(User).all()
+            for d in doctors:
+                d_data = {
+                    'first_name': d.user.first_name,
+                    'last_name': d.user.last_name,
+                    'email': d.user.email,
+                    'doctor_id': d.doctor_id,
+                    'specialization': d.specialization,
+                    'rating': d.rating
+                }
+                hdims_ds.index_doctor(d.user.id, d_data)
+            print(f"   - Indexed {len(doctors)} doctors")
+
+            # 3. Rebuild Disease Trie
+            diseases = Disease.query.all()
+            for disease in diseases:
+                d_data = {
+                    'name': disease.name,
+                    'symptoms': disease.symptoms,
+                    'category': disease.category
+                }
+                hdims_ds.index_disease(disease.name, d_data)
+            print(f"   - Indexed {len(diseases)} diseases")
+
+            # 4. Rebuild Appointment Priority Queue
+            # Only add 'scheduled' appointments that are in the future
+            future_appointments = Appointment.query.filter(
+                Appointment.status == 'scheduled',
+                Appointment.appointment_date >= date.today()
+            ).all()
+            
+            for apt in future_appointments:
+                priority_data = get_appointment_priority_data(apt)
+                hdims_ds.appointment_queue.add_appointment(apt.id, priority_data)
+            print(f"   - Queued {len(future_appointments)} active appointments")
+
+            print("✅ Data structures successfully rebuilt.")
+
+        except Exception as e:
+            print(f"⚠️ Error rebuilding structures: {e}")
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
@@ -1103,3 +1169,5 @@ def not_found_error(error):
 def internal_error(error):
     db.session.rollback()
     return jsonify({'error': 'Internal server error'}), 500
+
+rebuild_structures()

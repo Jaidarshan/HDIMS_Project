@@ -22,7 +22,7 @@ class EncryptedString(TypeDecorator):
         # Fetch key from environment variable
         key_hex = os.environ.get('ENCRYPTION_KEY')
         if not key_hex:
-            raise ValueError("ENCRYPTION_KEY not found in environment variables")
+            raise ValueError("CRITICAL SECURITY ERROR: 'ENCRYPTION_KEY' is missing from .env file. Please add a 32-byte hex key.")
         self.key = binascii.unhexlify(key_hex)
         self.aesgcm = AESGCM(self.key)
 

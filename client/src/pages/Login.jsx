@@ -85,41 +85,6 @@ function Login() {
                     </div>
                 </div>
             </div>
-
-            {/* Test Credentials Section */}
-            <div className="card mt-4">
-                <div className="card-header bg-light">
-                    <h6 className="mb-0">
-                        <i className="fas fa-info-circle me-2"></i>Test Login Credentials
-                    </h6>
-                </div>
-                <div className="card-body">
-                    <div className="row g-3">
-                        <div className="col-md-4">
-                            <div className="text-center">
-                                <div className="fw-bold text-primary">Patient</div>
-                                <small>patient@hdims.com</small><br />
-                                <small>patient123</small>
-                            </div>
-                        </div>
-                        <div className="col-md-4">
-                            <div className="text-center">
-                                <div className="fw-bold text-success">Doctor</div>
-                                <small>doctor@hdims.com</small><br />
-                                <small>doctor123</small>
-                            </div>
-                        </div>
-                        <div className="col-md-4">
-                            <div className="text-center">
-                                <div className="fw-bold text-danger">Admin</div>
-                                <small>admin@hdims.com</small><br />
-                                <small>admin123</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
   );

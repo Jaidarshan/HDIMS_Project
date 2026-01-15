@@ -24,7 +24,9 @@ app.secret_key = os.environ.get("SESSION_SECRET")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure the database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+# Use local SQLite database if no cloud database is found
+base_dir = os.path.abspath(os.path.dirname(__file__))
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL") or 'sqlite:///' + os.path.join(base_dir, 'instance', 'hdims.db')
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
@@ -46,9 +48,18 @@ def load_user(user_id):
     from models import User
     return User.query.get(int(user_id))
 
+# In app.py (near line 46)
+
 with app.app_context():
     # Import models to ensure tables are created
     import models  # noqa: F401
+    from utils import initialize_system_data # <--- Add Import
+    
     db.create_all()
     logging.info("Database tables created")
+    
+    # Initialize default data (Specializations/Diseases) if missing
+    initialize_system_data() # <--- Add this call
+    logging.info("System reference data initialized")
+
 import routes
