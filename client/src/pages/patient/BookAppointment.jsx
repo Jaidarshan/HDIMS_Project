@@ -36,22 +36,26 @@ function BookAppointment() {
   });
 
   return (
-    <div className="row justify-content-center">
+    <div className="row justify-content-center animate__animated animate__fadeIn">
       <div className="col-md-8 col-lg-6">
-        <div className="card shadow-sm">
-          <div className="card-header bg-primary text-white">
-            <h4 className="mb-0"><i className="fas fa-calendar-plus me-2"></i>Book an Appointment</h4>
+        <div className="card border-0 shadow-sm">
+          <div className="card-header bg-white border-bottom py-3">
+            <h4 className="mb-0 text-primary fw-bold">
+                <i className="fas fa-calendar-plus me-2"></i>Book an Appointment
+            </h4>
           </div>
           <div className="card-body p-4">
             
             <form onSubmit={formik.handleSubmit}>
               
               {/* Doctor Dropdown */}
-              <div className="mb-3">
-                <label className="form-label">Select Doctor</label>
+              <div className="mb-4">
+                <label className="form-label fw-bold text-muted small text-uppercase">
+                    <i className="fas fa-user-md me-2"></i>Select Doctor
+                </label>
                 <select 
                   name="doctor_id" 
-                  className="form-select"
+                  className="form-select bg-light border-0 py-2"
                   onChange={formik.handleChange} 
                   value={formik.values.doctor_id} 
                   required
@@ -66,24 +70,28 @@ function BookAppointment() {
               </div>
 
               {/* Date & Time Row */}
-              <div className="row mb-3">
+              <div className="row mb-4">
                 <div className="col-md-6">
-                    <label className="form-label">Date</label>
+                    <label className="form-label fw-bold text-muted small text-uppercase">
+                        <i className="far fa-calendar-alt me-2"></i>Date
+                    </label>
                     <input 
                       type="date" 
                       name="appointment_date" 
-                      className="form-control"
+                      className="form-control bg-light border-0 py-2"
                       onChange={formik.handleChange} 
                       value={formik.values.appointment_date} 
                       required 
                     />
                 </div>
-                <div className="col-md-6">
-                    <label className="form-label">Time</label>
+                <div className="col-md-6 mt-3 mt-md-0">
+                    <label className="form-label fw-bold text-muted small text-uppercase">
+                        <i className="far fa-clock me-2"></i>Time
+                    </label>
                     <input 
                       type="time" 
                       name="appointment_time" 
-                      className="form-control"
+                      className="form-control bg-light border-0 py-2"
                       onChange={formik.handleChange} 
                       value={formik.values.appointment_time} 
                       required 
@@ -92,11 +100,13 @@ function BookAppointment() {
               </div>
 
               {/* Appointment Type */}
-              <div className="mb-3">
-                <label className="form-label">Appointment Type</label>
+              <div className="mb-4">
+                <label className="form-label fw-bold text-muted small text-uppercase">
+                    <i className="fas fa-tag me-2"></i>Appointment Type
+                </label>
                 <select 
                   name="appointment_type" 
-                  className="form-select"
+                  className="form-select bg-light border-0 py-2"
                   onChange={formik.handleChange} 
                   value={formik.values.appointment_type}
                 >
@@ -107,11 +117,13 @@ function BookAppointment() {
               </div>
 
               {/* Symptoms */}
-              <div className="mb-3">
-                <label className="form-label">Symptoms</label>
+              <div className="mb-4">
+                <label className="form-label fw-bold text-muted small text-uppercase">
+                    <i className="fas fa-notes-medical me-2"></i>Symptoms
+                </label>
                 <textarea 
                   name="symptoms" 
-                  className="form-control"
+                  className="form-control bg-light border-0"
                   rows="3"
                   onChange={formik.handleChange} 
                   value={formik.values.symptoms} 
@@ -121,7 +133,7 @@ function BookAppointment() {
 
               {/* Submit Button */}
               <div className="d-grid mt-4">
-                <button type="submit" className="btn btn-primary btn-lg">
+                <button type="submit" className="btn btn-primary btn-lg shadow-sm">
                     <i className="fas fa-check-circle me-2"></i>Confirm Booking
                 </button>
               </div>

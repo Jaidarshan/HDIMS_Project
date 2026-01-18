@@ -885,8 +885,9 @@ def api_admin_analytics():
     
     revenue_data = db.session.query(Doctor.specialization, func.sum(Doctor.consultation_fee)).join(Appointment, Doctor.id == Appointment.doctor_id).filter(Appointment.status == 'completed').filter(date_filter).group_by(Doctor.specialization).all()
      
-    monthly_data = db.session.query(func.strftime('%Y-%m', Appointment.appointment_date).label('month'), func.count(Appointment.id)).filter(date_filter).group_by('month').order_by('month').all()
-
+    # PostgreSQL uses 'to_char' instead of 'strftime'
+    # Note the format string change: '%Y-%m' becomes 'YYYY-MM'
+    monthly_data = db.session.query(func.to_char(Appointment.appointment_date, 'YYYY-MM').label('month'), func.count(Appointment.id)).filter(date_filter).group_by('month').order_by('month').all()
     gender_data = db.session.query(User.gender, func.count(User.id)).join(Patient, User.id == Patient.user_id).group_by(User.gender).all()
 
     # --- 3. NEW QUERIES ---

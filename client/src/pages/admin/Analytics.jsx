@@ -29,9 +29,14 @@ const LOCKED_OPTIONS = {
   maintainAspectRatio: false,
   animation: false,
   plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { display: false } },
+    y: { beginAtZero: true, grid: { color: '#f1f5f9' } } // Matches var(--border-color)
+  },
   layout: { padding: 0 }
 };
 
+// Styled match for AdminDashboard's ChartBox
 const ChartShell = ({ children }) => {
   return (
     <div
@@ -39,16 +44,17 @@ const ChartShell = ({ children }) => {
         position: 'relative',
         width: '100%',
         height: '240px',
-        background: '#fff',
-        borderRadius: '10px',
-        padding: '10px',
+        background: 'var(--bg-surface)',
+        borderRadius: 'var(--border-radius)',
+        padding: '16px',
         boxSizing: 'border-box',
         overflow: 'hidden',
-        border: '1px solid #eee', 
+        border: '1px solid var(--border-color)', 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minWidth: 0 
+        minWidth: 0,
+        boxShadow: 'var(--shadow-sm)'
       }}
     >
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -89,23 +95,32 @@ function AdminAnalytics() {
       .catch(err => { console.error(err); setLoading(false); });
   }, [timeRange]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>Loading Analytics...</div>;
-  if (!data) return <div style={{ padding: 40, textAlign: 'center', color: 'red' }}>Failed to load data.</div>;
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+        <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading Analytics...</span>
+        </div>
+    </div>
+  );
+  
+  if (!data) return <div className="text-center text-danger p-5">Failed to load analytics data.</div>;
 
+  // 1. Status Chart (Teal Theme)
   const statusChart = {
     labels: Object.keys(data.appointment_status || {}),
     datasets: [{
       data: Object.values(data.appointment_status || {}),
-      backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'],
+      backgroundColor: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'], // Blue, Green, Red, Amber
     }],
   };
 
+  // 2. Revenue by Specialization (Teal Bars)
   const topRevenue = Object.entries(data.revenue_by_specialization || {}).sort(([, a], [, b]) => b - a).slice(0, 5);
   const revenueChart = {
     labels: topRevenue.map(i => i[0]),
     datasets: [{
       data: topRevenue.map(i => i[1]),
-      backgroundColor: '#3b82f6',
+      backgroundColor: '#0d9488', // Medical Teal
       borderRadius: 4,
       barThickness: 15, 
     }],
@@ -116,13 +131,14 @@ function AdminAnalytics() {
     scales: { x: { grid: { display: false } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } },
   };
 
+  // 3. Growth Chart (Smooth Blue Line)
   const sortedGrowth = Object.entries(data.monthly_growth || {}).sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB));
   const growthChart = {
     labels: sortedGrowth.map(i => i[0]),
     datasets: [{
       data: sortedGrowth.map(i => i[1]),
-      borderColor: '#8b5cf6',
-      backgroundColor: 'rgba(139,92,246,.15)',
+      borderColor: '#3b82f6', // Blue
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
       fill: true,
       tension: 0.3,
       pointRadius: 3,
@@ -130,33 +146,37 @@ function AdminAnalytics() {
   };
   const growthOptions = {
     ...LOCKED_OPTIONS,
-    scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { stepSize: 10 } }, x: { grid: { display: false } } },
+    scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { stepSize: 10 } }, x: { grid: { display: false } } },
   };
 
+  // 4. Demographics (Pastel Palette)
   const genderChart = {
     labels: Object.keys(data.patient_demographics || {}),
     datasets: [{
       data: Object.values(data.patient_demographics || {}),
-      backgroundColor: ['#ec4899', '#0ea5e9', '#64748b'],
+      backgroundColor: ['#ec4899', '#0ea5e9', '#64748b'], // Pink, Blue, Gray
       cutout: '70%',
+      borderWidth: 0
     }],
   };
 
+  // 5. Appointment Types (Teal/Indigo Palette)
   const typeChart = {
     labels: Object.keys(data.appointment_types || {}),
     datasets: [{
       data: Object.values(data.appointment_types || {}),
-      backgroundColor: ['#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'],
+      backgroundColor: ['#6366f1', '#0d9488', '#d946ef', '#f43f5e'],
       borderWidth: 0
     }]
   };
 
+  // 6. Top Diagnoses (Emerald Bars)
   const topDiagnoses = Object.entries(data.top_diagnoses || {}).sort(([, a], [, b]) => b - a).slice(0, 5);
   const diagnosesChart = {
     labels: topDiagnoses.map(i => i[0]),
     datasets: [{
       data: topDiagnoses.map(i => i[1]),
-      backgroundColor: '#10b981', 
+      backgroundColor: '#10b981', // Emerald
       borderRadius: 4,
       barThickness: 15,
     }]
@@ -164,12 +184,20 @@ function AdminAnalytics() {
   const diagnosesOptions = { ...revenueOptions };
 
   return (
-    <div style={{ padding: 24, paddingBottom: 100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, borderBottom: '1px solid #eee', paddingBottom: 16 }}>
-        <h2 style={{ margin: 0, color: '#1f2937', fontSize: '1.5rem' }}>System Analytics</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#6b7280' }}>Time Range:</label>
-          <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #d1d5db', outline: 'none', cursor: 'pointer' }}>
+    <div className="container-fluid p-4 animate__animated animate__fadeIn" style={{ paddingBottom: 100 }}>
+      {/* Header & Filter */}
+      <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
+        <h2 className="text-primary fw-bold mb-0">
+            <i className="fas fa-chart-line me-2"></i>System Analytics
+        </h2>
+        <div className="d-flex align-items-center gap-2">
+          <label className="text-muted fw-bold small text-uppercase">Time Range:</label>
+          <select 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value)} 
+            className="form-select form-select-sm bg-light border-0 shadow-sm"
+            style={{ width: 'auto', fontWeight: '500' }}
+          >
             <option value="all">All Time</option>
             <option value="7days">Last 7 Days</option>
             <option value="30days">Last 30 Days</option>
@@ -178,31 +206,39 @@ function AdminAnalytics() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+      {/* Grid Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+        
+        {/* Row 1 */}
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Status</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Appointment Status</h6>
           <ChartShell><PieChart data={statusChart} /></ChartShell>
         </div>
         <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Top Departments (Revenue)</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Top Departments (Revenue)</h6>
           <ChartShell><BarChart data={revenueChart} options={revenueOptions} /></ChartShell>
         </div>
+        
+        {/* Row 2 */}
         <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Monthly Growth</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Monthly Growth</h6>
           <ChartShell><LineChart data={growthChart} options={growthOptions} /></ChartShell>
         </div>
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Demographics</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Demographics</h6>
           <ChartShell><DoughnutChart data={genderChart} /></ChartShell>
         </div>
+        
+        {/* Row 3 */}
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Appointment Types</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Appointment Types</h6>
           <ChartShell><DoughnutChart data={typeChart} /></ChartShell>
         </div>
         <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Top Diagnoses (Disease Prevalence)</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Top Diagnoses (Prevalence)</h6>
           <ChartShell><BarChart data={diagnosesChart} options={diagnosesOptions} /></ChartShell>
         </div>
+
       </div>
     </div>
   );

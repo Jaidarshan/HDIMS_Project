@@ -38,63 +38,75 @@ function DoctorAppointments() {
   };
 
   return (
-    <div className="container-fluid p-4">
+    <div className="container-fluid p-4 animate__animated animate__fadeIn">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="text-primary"><i className="fas fa-user-md me-2"></i>Manage Appointments</h2>
+        <h2 className="text-primary fw-bold mb-0">
+            <i className="fas fa-user-md me-2"></i>Manage Appointments
+        </h2>
       </div>
 
-      <div className="card shadow-sm">
+      <div className="card border-0 shadow-sm">
         <div className="card-body p-0">
           <div className="table-responsive">
-            <table className="table table-hover table-striped mb-0 align-middle">
-              <thead className="bg-light text-secondary">
+            <table className="table table-hover align-middle mb-0">
+              <thead className="bg-light">
                   <tr>
-                      <th>Date & Time</th>
-                      <th>Patient Name</th>
-                      <th>Type</th>
-                      <th style={{width: '30%'}}>Symptoms</th>
-                      <th>Status</th>
-                      <th>Action</th>
+                      <th className="py-3 ps-4 text-uppercase text-muted small fw-bold border-bottom">Date & Time</th>
+                      <th className="py-3 text-uppercase text-muted small fw-bold border-bottom">Patient Name</th>
+                      <th className="py-3 text-uppercase text-muted small fw-bold border-bottom">Type</th>
+                      <th className="py-3 text-uppercase text-muted small fw-bold border-bottom" style={{width: '30%'}}>Symptoms</th>
+                      <th className="py-3 text-uppercase text-muted small fw-bold border-bottom">Status</th>
+                      <th className="py-3 text-uppercase text-muted small fw-bold border-bottom">Action</th>
                   </tr>
               </thead>
               <tbody>
                   {appointments.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-4 text-muted">
-                        No appointments found.
+                      <td colSpan="6" className="text-center py-5">
+                        <div className="mb-3 text-muted opacity-25">
+                            <i className="fas fa-calendar-times fa-3x"></i>
+                        </div>
+                        <p className="text-muted fw-medium mb-0">No appointments found.</p>
                       </td>
                     </tr>
                   ) : (
                     appointments.map(apt => (
                       <tr key={apt.id}>
-                          <td>
-                            <div className="fw-bold">{apt.date}</div>
-                            <small className="text-muted">{apt.time}</small>
+                          <td className="ps-4">
+                            <div className="fw-bold text-dark">{apt.date}</div>
+                            <small className="text-muted">
+                                <i className="far fa-clock me-1"></i>{apt.time}
+                            </small>
                           </td>
-                          <td className="fw-bold">{apt.patient_name}</td>
+                          <td className="fw-bold text-primary">{apt.patient_name}</td>
                           <td>
-                            <span className={`badge ${apt.type === 'Emergency' ? 'bg-danger' : 'bg-info text-dark'}`}>
+                            <span className={`badge rounded-pill px-3 py-2 border ${
+                                apt.type === 'Emergency' 
+                                ? 'bg-danger-subtle text-danger border-danger-subtle' 
+                                : 'bg-info-subtle text-info border-info-subtle'
+                            }`}>
                               {apt.type}
                             </span>
                           </td>
                           {/* FIX: Display Symptoms Here */}
                           <td>
                             <span className="text-dark small">
-                              {apt.symptoms ? apt.symptoms : <em className="text-muted">No symptoms provided</em>}
+                              {apt.symptoms ? apt.symptoms : <em className="text-muted opacity-50">No symptoms provided</em>}
                             </span>
                           </td>
                           <td>
-                            <span className={`badge ${
-                              apt.status === 'completed' ? 'bg-success' : 
-                              apt.status === 'scheduled' ? 'bg-primary' : 'bg-secondary'
+                            <span className={`badge rounded-pill px-3 py-2 border ${
+                              apt.status === 'completed' ? 'bg-success-subtle text-success border-success-subtle' : 
+                              apt.status === 'scheduled' ? 'bg-primary-subtle text-primary border-primary-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'
                             }`}>
+                              {apt.status === 'completed' && <i className="fas fa-check-circle me-1"></i>}
                               {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
                             </span>
                           </td>
                           <td>
                               {apt.status === 'scheduled' && (
                                   <button 
-                                    className="btn btn-sm btn-success"
+                                    className="btn btn-sm btn-success shadow-sm"
                                     onClick={() => handleComplete(apt.id, apt.patient_name, apt.symptoms)}
                                   >
                                     <i className="fas fa-check-circle me-1"></i> Complete

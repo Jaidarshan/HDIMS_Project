@@ -37,7 +37,7 @@ const LOCKED_OPTIONS = {
   },
   scales: {
     x: { grid: { display: false } },
-    y: { beginAtZero: true, grid: { color: '#f3f4f6' } }
+    y: { beginAtZero: true, grid: { color: '#f1f5f9' } } // Matches var(--border-color) visually
   },
   layout: { padding: 0 }
 };
@@ -50,23 +50,24 @@ const PIE_OPTIONS = {
   scales: { x: { display: false }, y: { display: false } }
 };
 
-// 🔒 STRICT FIXED CONTAINER (Same as Analytics)
+// 🔒 STRICT FIXED CONTAINER (Styled to match Theme)
 const ChartBox = ({ children }) => (
   <div
     style={{
       position: 'relative',
       width: '100%',
       height: '240px', // Strictly matches Analytics
-      background: '#fff',
-      borderRadius: '10px',
-      padding: '12px',
+      background: 'var(--bg-surface)',
+      borderRadius: 'var(--border-radius)',
+      padding: '16px',
       boxSizing: 'border-box',
       overflow: 'hidden',
-      border: '1px solid #eee', 
+      border: '1px solid var(--border-color)', 
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: 0 // Prevents grid blowout
+      minWidth: 0, // Prevents grid blowout
+      boxShadow: 'var(--shadow-sm)'
     }}
   >
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -85,17 +86,23 @@ function AdminDashboard() {
       .catch(console.error);
   }, []);
 
-  if (loading) return <div className="text-center mt-5"><div className="spinner-border text-primary"></div></div>;
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '50vh' }}>
+        <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+        </div>
+    </div>
+  );
 
   const { stats, charts } = data;
 
-  // 1. Monthly Volume
+  // 1. Monthly Volume (Updated to Teal)
   const monthlyChartData = {
     labels: charts.monthly.map(m => m.month),
     datasets: [{
       label: 'Appointments',
       data: charts.monthly.map(m => m.count),
-      backgroundColor: '#3b82f6',
+      backgroundColor: '#0d9488', // Medical Teal
       borderRadius: 4,
       barThickness: 25
     }]
@@ -107,7 +114,7 @@ function AdminDashboard() {
     datasets: [{
         label: 'Revenue ($)',
         data: charts.revenue ? charts.revenue.map(r => r.revenue) : [],
-        borderColor: '#10b981',
+        borderColor: '#10b981', // Emerald Green
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
         fill: true,
         tension: 0.3,
@@ -115,12 +122,12 @@ function AdminDashboard() {
     }]
   };
 
-  // 3. Status
+  // 3. Status (Updated Colors)
   const statusChartData = {
     labels: charts.status.map(s => s.status),
     datasets: [{
       data: charts.status.map(s => s.count),
-      backgroundColor: ['#10b981', '#3b82f6', '#ef4444', '#f59e0b'],
+      backgroundColor: ['#10b981', '#0d9488', '#ef4444', '#f59e0b'], // Green, Teal, Red, Amber
       borderWidth: 0
     }]
   };
@@ -138,63 +145,63 @@ function AdminDashboard() {
   };
 
   return (
-    <div className="container-fluid py-4" style={{ paddingBottom: 100 }}>
-      <h2 className="text-primary mb-4 fw-bold" style={{ fontSize: '1.5rem' }}>
-        <i className="fas fa-tachometer-alt me-2"></i>Admin Dashboard
-      </h2>
+    <div className="container-fluid p-4 animate__animated animate__fadeIn" style={{ paddingBottom: 100 }}>
+      <div className="mb-4">
+        <h2 className="text-primary fw-bold mb-0">
+            <i className="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+        </h2>
+      </div>
 
       {/* Stats Cards */}
       <div className="row g-4 mb-4">
         <div className="col-md-4">
-          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(45deg, #2563EB, #1D4ED8)' }}>
+          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)' }}>
             <div className="card-body d-flex justify-content-between align-items-center p-4">
-              <div><h2 className="mb-0 fw-bold">{stats.patients}</h2><div className="text-white-50">Total Patients</div></div>
+              <div><h2 className="mb-0 fw-bold">{stats.patients}</h2><div className="text-white-50 small text-uppercase fw-bold">Total Patients</div></div>
               <i className="fas fa-users fa-3x opacity-25"></i>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(45deg, #10B981, #059669)' }}>
+          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' }}>
             <div className="card-body d-flex justify-content-between align-items-center p-4">
-              <div><h2 className="mb-0 fw-bold">{stats.doctors}</h2><div className="text-white-50">Active Doctors</div></div>
+              <div><h2 className="mb-0 fw-bold">{stats.doctors}</h2><div className="text-white-50 small text-uppercase fw-bold">Active Doctors</div></div>
               <i className="fas fa-user-md fa-3x opacity-25"></i>
             </div>
           </div>
         </div>
         <div className="col-md-4">
-          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(45deg, #F59E0B, #D97706)' }}>
+          <div className="card text-white shadow-sm border-0" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
             <div className="card-body d-flex justify-content-between align-items-center p-4">
-              <div><h2 className="mb-0 fw-bold">{stats.appointments}</h2><div className="text-white-50">Total Appointments</div></div>
+              <div><h2 className="mb-0 fw-bold">{stats.appointments}</h2><div className="text-white-50 small text-uppercase fw-bold">Total Appointments</div></div>
               <i className="fas fa-calendar-check fa-3x opacity-25"></i>
             </div>
           </div>
         </div>
       </div>
 
-      {/* GRID LAYOUT (Aligned with Analytics) 
-         Use strict grid-template-columns to align rows perfectly
-      */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+      {/* GRID LAYOUT (Strictly preserved structure, updated styling) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
         
         {/* ROW 1 */}
         <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Monthly Appointment Volume</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Monthly Appointment Volume</h6>
           <ChartBox><Bar data={monthlyChartData} options={LOCKED_OPTIONS} /></ChartBox>
         </div>
         
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Appointment Status</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Appointment Status</h6>
           <ChartBox><Pie data={statusChartData} options={PIE_OPTIONS} /></ChartBox>
         </div>
 
         {/* ROW 2 */}
         <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Monthly Revenue Trend</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Monthly Revenue Trend</h6>
           <ChartBox><Line data={revenueChartData} options={LOCKED_OPTIONS} /></ChartBox>
         </div>
 
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
-          <h6 style={{ marginBottom: 8, color: '#4b5563', fontWeight: 600 }}>Doctors by Department</h6>
+          <h6 className="text-muted fw-bold text-uppercase small mb-2">Doctors by Department</h6>
           <ChartBox><Doughnut data={specChartData} options={PIE_OPTIONS} /></ChartBox>
         </div>
 
